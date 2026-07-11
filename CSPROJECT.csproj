@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>net48</TargetFramework>
-        <AssemblyName>ImprovedLoadouts</AssemblyName>
-        <Product>ImprovedLoadouts</Product>
+        <AssemblyName>LoadoutImprovements</AssemblyName>
+        <Product>LoadoutImprovements</Product>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
         <RestoreAdditionalProjectSources>
@@ -11,19 +11,8 @@
             https://nuget.bepinex.dev/v3/index.json;
             https://nuget.samboy.dev/v3/index.json
         </RestoreAdditionalProjectSources>
-        <RootNamespace>ImprovedLoadouts</RootNamespace>
-
-        <!-- Git tags must strart with v -->
-        <MinVerTagPrefix>v</MinVerTagPrefix>
+        <RootNamespace>LoadoutImprovements</RootNamespace>
     </PropertyGroup>
-
-    <!-- Set BepInEx plugin version according to MinVer -->
-    <Target Name="SetModVersion" BeforeTargets="AddGeneratedFile" DependsOnTargets="MinVer">
-        <PropertyGroup>
-            <PlainVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch)</PlainVersion>
-            <BepInExPluginVersion>$(PlainVersion)</BepInExPluginVersion>
-        </PropertyGroup>
-    </Target>
 
     <ItemGroup>
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
@@ -31,11 +20,6 @@
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
         <PackageReference Include="UnityEngine.Modules" Version="2022.3.53" IncludeAssets="compile" />
         <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
-
-        <PackageReference Include="MinVer" Version="6.0.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
@@ -80,7 +64,10 @@
       <Reference Include="UnityEngine.UIModule">
         <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Mycopunk\Mycopunk_Data\Managed\UnityEngine.UIModule.dll</HintPath>
       </Reference>
+      <Reference Include="SparrohUILib">
+        <HintPath>..\..\..\AppData\Roaming\r2modmanPlus-local\Mycopunk\profiles\Default\BepInEx\plugins\Sparroh-SparrohUILib\SparrohUILib.dll</HintPath>
+        <Private>false</Private>
+      </Reference>
     </ItemGroup>
-
-
 </Project>
+
