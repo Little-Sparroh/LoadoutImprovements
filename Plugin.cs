@@ -58,11 +58,11 @@ public class SparrohPlugin : BaseUnityPlugin
                 LoadoutExpanderMod.ScrollRightKey = ScrollRightKey.Value;
                 ScrollRightKey.SettingChanged += (sender, args) => { LoadoutExpanderMod.ScrollRightKey = ScrollRightKey.Value; };
 
-                LoadoutRenameKey = Config.Bind("Keybinds", "Rename Loadout", Key.L, "Key to rename the hovered loadout");
+                LoadoutRenameKey = Config.Bind("Keybinds", "Rename Loadout", Key.R, "Key to rename the hovered loadout");
                 LoadoutHoverInfoPatches.RenameKey = LoadoutRenameKey.Value;
                 LoadoutRenameKey.SettingChanged += (sender, args) => { LoadoutHoverInfoPatches.RenameKey = LoadoutRenameKey.Value; };
 
-                LoadoutPreviewMod.enableTextMode = Config.Bind("General", "Loadout Preview", false, "If true, show upgrade list on hover");
+                LoadoutPreviewMod.enableTextMode = Config.Bind("General", "Loadout Preview", true, "If true, show upgrade list on hover");
                 LoadoutPreviewMod.enableTextMode.SettingChanged += (sender, args) => LoadoutPreviewMod.OnConfigChanged();
                 LoadoutPreviewMod.UpdatePreviewMode();
 
