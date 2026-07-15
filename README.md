@@ -9,6 +9,10 @@ A BepInEx mod for Mycopunk that expands and improves gear loadout management.
 - **Rename Loadouts**: Hover a loadout and press the rename key to give it a custom name
 - **Loadout Preview**: Optional text preview listing upgrades when hovering a loadout
 - **Custom Loadout Icons**: Loadout icons can use equipped upgrade icons
+- **Equipped Loadout Highlight**: Loadout slots whose contents match your currently equipped upgrades invert colors — the fill uses your UI color and the icon turns black
+
+
+
 
 ## Getting Started
 

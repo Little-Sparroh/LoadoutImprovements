@@ -15,7 +15,8 @@ public class SparrohPlugin : BaseUnityPlugin
 {
     public const string PluginGUID = "sparroh.loadoutimprovements";
     public const string PluginName = "LoadoutImprovements";
-    public const string PluginVersion = "1.1.0";
+    public const string PluginVersion = "1.2.1";
+
 
     private ConfigEntry<Key> ScrollLeftKey;
     private ConfigEntry<Key> ScrollRightKey;

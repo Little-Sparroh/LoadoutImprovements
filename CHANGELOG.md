@@ -1,6 +1,19 @@
 # Changelog
 
+## 1.2.1
+
+- Equipped loadout highlight now inverts icon/fill: fill uses your UI color (`Global.UIColor`), icon turns black
+- Replaces the previous gold icon tint
+
+## 1.2.0
+
+- Highlight loadout slots that match currently equipped upgrades (content match)
+- Active slot's loadout icon is tinted gold; updates on equip, save, upgrade changes, and page scroll
+
+
+
 ## 1.1.0
+
 
 - Initial standalone release of Loadout Improvements
 - Split loadout features out of Enhanced Upgrade Menu
