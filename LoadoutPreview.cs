@@ -1,28 +1,21 @@
-using BepInEx.Configuration;
-using HarmonyLib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using BepInEx.Configuration;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 [HarmonyPatch]
 public static class LoadoutPreviewMod
 {
-    public class UpgradePlacement
-    {
-        public UpgradeInstance Upgrade;
-        public int X;
-        public int Y;
-        public byte Rotation;
-    }
-
     private static MonoBehaviour currentPreview;
     private static int lastHoveredIndex = -1;
-    private static string currentPreviewType = null;
+    private static string currentPreviewType;
 
-    private static int yOffset = 0;
+    private static readonly int yOffset = 0;
 
     internal static ConfigEntry<bool> enableTextMode;
     internal static string CurrentPreviewMode;
@@ -72,9 +65,10 @@ public static class LoadoutPreviewMod
         {
             if (currentPreview != null)
             {
-                ((TextPreview)currentPreview).Hide();
+                ((LoadoutTextPreview)currentPreview).Hide();
                 currentPreview = null;
             }
+
             currentPreviewType = null;
             lastHoveredIndex = -1;
         }
@@ -84,14 +78,15 @@ public static class LoadoutPreviewMod
         }
     }
 
+
     public static void Patch(Harmony harmony)
     {
         harmony.Patch(AccessTools.Method(typeof(GearDetailsWindow), "OnOpen"),
-                      postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "OnOpenPostfix"));
+            postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "OnOpenPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GearDetailsWindow), "OnCloseCallback"),
-                      postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "OnCloseCallbackPostfix"));
+            postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "OnCloseCallbackPostfix"));
         harmony.Patch(AccessTools.Method(typeof(GearDetailsWindow), "Update"),
-                      postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "UpdatePostfix"));
+            postfix: new HarmonyMethod(typeof(LoadoutPreviewMod), "UpdatePostfix"));
     }
 
     [HarmonyPatch(typeof(GearDetailsWindow), "OnOpen")]
@@ -111,12 +106,13 @@ public static class LoadoutPreviewMod
         lastHoveredIndex = -1;
     }
 
-    private static TextPreview CreateTextPreview(GearDetailsWindow window)
+    private static LoadoutTextPreview CreateTextPreview(GearDetailsWindow window)
     {
-        var previewGO = new GameObject("TextPreview");
+        var previewGO = new GameObject("LoadoutTextPreview");
         previewGO.transform.SetParent(window.transform, false);
 
-        var preview = previewGO.AddComponent<TextPreview>();
+        var preview = previewGO.AddComponent<LoadoutTextPreview>();
+
         var rt = previewGO.GetComponent<RectTransform>();
         rt.anchoredPosition = new Vector2(10000, 10000);
         previewGO.SetActive(false);
@@ -128,10 +124,8 @@ public static class LoadoutPreviewMod
     [HarmonyPostfix]
     public static void OnCloseCallbackPostfix()
     {
-        if (currentPreview != null)
-        {
-            ((TextPreview)currentPreview).Hide();
-        }
+        if (currentPreview != null) ((LoadoutTextPreview)currentPreview).Hide();
+
         currentPreviewType = null;
         lastHoveredIndex = -1;
     }
@@ -144,14 +138,11 @@ public static class LoadoutPreviewMod
         {
             if (currentPreview != null)
             {
-                ((TextPreview)currentPreview).Hide();
+                ((LoadoutTextPreview)currentPreview).Hide();
                 currentPreview = null;
             }
 
-            if (CurrentPreviewMode == "text")
-            {
-                currentPreview = CreateTextPreview(__instance);
-            }
+            if (CurrentPreviewMode == "text") currentPreview = CreateTextPreview(__instance);
 
             currentPreviewType = CurrentPreviewMode;
         }
@@ -161,41 +152,36 @@ public static class LoadoutPreviewMod
         var loadoutButtons = Traverse.Create(__instance).Field("loadoutButtons").GetValue() as LoadoutHoverInfo[];
         if (loadoutButtons == null) return;
 
-        int hoveredIndex = -1;
-        Vector2 mousePos = PlayerInput.Controls.Menu.Point.ReadValue<Vector2>();
-        for (int i = 0; i < loadoutButtons.Length; i++)
-        {
+        var hoveredIndex = -1;
+        var mousePos = PlayerInput.Controls.Menu.Point.ReadValue<Vector2>();
+        for (var i = 0; i < loadoutButtons.Length; i++)
             if (loadoutButtons[i] != null && IsButtonHovered(loadoutButtons[i], mousePos))
             {
                 hoveredIndex = i;
                 break;
             }
-        }
 
         if (hoveredIndex != lastHoveredIndex)
         {
-            if (lastHoveredIndex >= 0)
-            {
-                ((TextPreview)currentPreview).Hide();
-            }
+            if (lastHoveredIndex >= 0) ((LoadoutTextPreview)currentPreview).Hide();
 
             if (hoveredIndex >= 0)
             {
                 var upgrades = GetLoadoutUpgradePlacements(__instance, hoveredIndex);
                 if (upgrades.Count > 0)
                 {
-                    int minY = upgrades.Min(p => p.Y);
+                    var minY = upgrades.Min(p => p.Y);
                     if (minY < 0)
-                    {
-                        foreach (var p in upgrades) p.Y -= minY;
-                    }
+                        foreach (var p in upgrades)
+                            p.Y -= minY;
 
                     var pos = CalculatePreviewPosition(mousePos);
-                    ((TextPreview)currentPreview).Setup(upgrades);
-                    ((TextPreview)currentPreview).SetPosition(pos);
-                    ((TextPreview)currentPreview).Show();
+                    ((LoadoutTextPreview)currentPreview).Setup(upgrades);
+                    ((LoadoutTextPreview)currentPreview).SetPosition(pos);
+                    ((LoadoutTextPreview)currentPreview).Show();
                 }
             }
+
 
             lastHoveredIndex = hoveredIndex;
         }
@@ -212,7 +198,8 @@ public static class LoadoutPreviewMod
     private static Vector2 CalculatePreviewPosition(Vector2 mousePos)
     {
         var uiCanvas = Menu.Instance.gameObject.GetComponentInParent<Canvas>();
-        RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)uiCanvas.transform, mousePos, uiCanvas.worldCamera, out var localPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)uiCanvas.transform, mousePos,
+            uiCanvas.worldCamera, out var localPos);
         localPos += new Vector2(500, -250);
         return localPos;
     }
@@ -222,12 +209,12 @@ public static class LoadoutPreviewMod
         var placements = new List<UpgradePlacement>();
         try
         {
-            object upgradable = Traverse.Create(window).Property("UpgradablePrefab").GetValue();
+            var upgradable = Traverse.Create(window).Property("UpgradablePrefab").GetValue();
             if (upgradable == null) return placements;
 
             var playerDataInstance = typeof(PlayerData).GetProperty("Instance").GetValue(null);
-            var getGearDataMethod = typeof(PlayerData).GetMethod("GetGearData", new Type[] { typeof(IUpgradable) });
-            var gearData = getGearDataMethod?.Invoke(playerDataInstance, new object[] { upgradable });
+            var getGearDataMethod = typeof(PlayerData).GetMethod("GetGearData", new[] { typeof(IUpgradable) });
+            var gearData = getGearDataMethod?.Invoke(playerDataInstance, new[] { upgradable });
             if (gearData == null) return placements;
 
             var loadoutsField = gearData.GetType().GetField("loadouts", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -240,10 +227,10 @@ public static class LoadoutPreviewMod
             var upgradesList = Traverse.Create(loadout).Field("upgrades").GetValue();
             if (upgradesList == null) return placements;
 
-            var upgradesIList = upgradesList as System.Collections.IList;
+            var upgradesIList = upgradesList as IList;
             if (upgradesIList == null) return placements;
 
-            for (int i = 0; i < upgradesIList.Count; i++)
+            for (var i = 0; i < upgradesIList.Count; i++)
             {
                 var equipData = upgradesIList[i];
                 if (equipData == null) continue;
@@ -267,5 +254,13 @@ public static class LoadoutPreviewMod
         }
 
         return placements;
+    }
+
+    public class UpgradePlacement
+    {
+        public byte Rotation;
+        public UpgradeInstance Upgrade;
+        public int X;
+        public int Y;
     }
 }

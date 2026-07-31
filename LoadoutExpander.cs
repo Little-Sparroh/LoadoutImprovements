@@ -1,13 +1,13 @@
-using HarmonyLib;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
-using BepInEx.Logging;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public static class LoadoutExpanderMod
 {
-    public static int PageOffset = 0;
+    public static int PageOffset;
 
     internal static FieldInfo _loadoutButtonsField;
     internal static FieldInfo _upgradableField;
@@ -20,8 +20,6 @@ public static class LoadoutExpanderMod
     {
         PageOffset += 3;
         if (PageOffset > 6) PageOffset = 0;
-
-        int pageNum = (PageOffset / 3) + 1;
 
         RefreshCurrentWindow();
     }
@@ -48,21 +46,19 @@ public static class LoadoutExpanderMod
         {
             var windows = Resources.FindObjectsOfTypeAll<GearDetailsWindow>();
             foreach (var window in windows)
-            {
                 if (window.gameObject.activeInHierarchy && _loadoutButtonsField != null && _updateIconMethod != null)
                 {
-                    Array buttons = _loadoutButtonsField.GetValue(window) as Array;
+                    var buttons = _loadoutButtonsField.GetValue(window) as Array;
                     if (buttons != null)
                     {
-                        int count = Mathf.Min(buttons.Length, 3);
-                        for (int i = 0; i < count; i++)
+                        var count = Mathf.Min(buttons.Length, 3);
+                        for (var i = 0; i < count; i++)
                         {
-                            object btn = buttons.GetValue(i);
-                            _updateIconMethod.Invoke(window, new object[] { btn, i });
+                            var btn = buttons.GetValue(i);
+                            _updateIconMethod.Invoke(window, new[] { btn, i });
                         }
                     }
                 }
-            }
         }
         catch (Exception e)
         {
@@ -71,140 +67,146 @@ public static class LoadoutExpanderMod
     }
 }
 
-    [HarmonyPatch(typeof(GearDetailsWindow), "UpdateLoadoutIcon")]
-    public static class UpdateIconPatch
+[HarmonyPatch]
+public static class GearDetailsWindowPatches
+{
+    [HarmonyPatch(typeof(GearDetailsWindow), "Setup")]
+    [HarmonyPostfix]
+    public static void SetupPostfix(ref GearDetailsWindow __instance, IUpgradable upgradable)
     {
-        [HarmonyPrefix]
-        public static void Prefix(ref int index)
-        {
-            if (index < 3) index += LoadoutExpanderMod.PageOffset;
-        }
-    }
+        LoadoutExpanderMod.PageOffset = 0;
+        LoadoutExpanderMod.RefreshCurrentWindow();
 
-    [HarmonyPatch(typeof(PlayerData.GearData), "EquipLoadout")]
-    public static class EquipLoadoutPatch
-    {
-        [HarmonyPrefix]
-        public static void Prefix(ref int index)
+        try
         {
-            if (index < 3) index += LoadoutExpanderMod.PageOffset;
-        }
-    }
+            var playerDataType = typeof(PlayerData);
+            var instanceProp = playerDataType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+            var playerDataInstance = instanceProp?.GetValue(null);
 
-    [HarmonyPatch(typeof(PlayerData.GearData), "IncrementLoadoutIcon")]
-    public static class IncrementIconPatch
-    {
-        [HarmonyPrefix]
-        public static void Prefix(ref int index)
-        {
-            if (index < 3) index += LoadoutExpanderMod.PageOffset;
-        }
-    }
+            var getGearDataMethod = playerDataType.GetMethod("GetGearData", new[] { typeof(IUpgradable) });
+            var gearData = getGearDataMethod?.Invoke(playerDataInstance, new object[] { upgradable });
 
-    [HarmonyPatch(typeof(PlayerData.GearData), "SaveLoadout")]
-    public static class SaveLoadoutPatch
-    {
-        [HarmonyPrefix]
-        public static void Prefix(ref int index)
-        {
-            if (index < 3) index += LoadoutExpanderMod.PageOffset;
-        }
-    }
-
-    [HarmonyPatch]
-    public static class RenameGetPatch
-    {
-        static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(AccessTools.TypeByName("LoadoutHoverInfoPatches"), "GetLoadoutName");
-        }
-
-        static void Prefix(ref int __1)
-        {
-             if (__1 < 3) __1 += LoadoutExpanderMod.PageOffset;
-        }
-    }
-
-    [HarmonyPatch]
-    public static class RenameSetPatch
-    {
-        static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(AccessTools.TypeByName("LoadoutHoverInfoPatches"), "SetLoadoutName");
-        }
-
-        static void Prefix(ref int __1)
-        {
-             if (__1 < 3) __1 += LoadoutExpanderMod.PageOffset;
-        }
-    }
-
-    [HarmonyPatch(typeof(LoadoutHoverInfo), "GetTitle")]
-    public static class TooltipPatch
-    {
-        [HarmonyPostfix]
-        [HarmonyPriority(Priority.Last)]
-        public static void Postfix(LoadoutHoverInfo __instance, ref string title)
-        {
-            if (LoadoutExpanderMod.PageOffset == 0) return;
-
-            try
+            if (gearData != null)
             {
-                GearDetailsWindow window = __instance.GetComponentInParent<GearDetailsWindow>();
-                if (window == null) return;
-
-                int visualIndex = -1;
-                Array buttons = LoadoutExpanderMod._loadoutButtonsField.GetValue(window) as Array;
-
-                if (buttons != null)
+                var gearDataType = gearData.GetType();
+                var loadoutsField = gearDataType.GetField("loadouts", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (loadoutsField != null)
                 {
-                    for(int i=0; i < buttons.Length; i++)
+                    var currentLoadouts = loadoutsField.GetValue(gearData) as Array;
+                    var loadoutType = playerDataType.GetNestedType("Loadout", BindingFlags.NonPublic);
+
+                    if (currentLoadouts == null || currentLoadouts.Length < LoadoutSlotsPatches.MaxLoadoutSlots)
                     {
-                        if ((object)buttons.GetValue(i) == (object)__instance)
-                        {
-                            visualIndex = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (visualIndex != -1 && visualIndex < 3)
-                {
-                    int realIndex = visualIndex + LoadoutExpanderMod.PageOffset;
-
-                    string displayName = null;
-                    IUpgradable upgradable = window.GetType().GetField("upgradable", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) as IUpgradable;
-
-                    if (upgradable != null)
-                    {
-                        var playerDataType = typeof(PlayerData);
-                        var instanceProp = playerDataType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                        var playerDataInstance = instanceProp?.GetValue(null);
-
-                        var getGearDataMethod = playerDataType.GetMethod("GetGearData", new Type[] { typeof(IUpgradable) });
-                        var gearData = getGearDataMethod?.Invoke(playerDataInstance, new object[] { upgradable });
-
-                        if (gearData != null)
-                        {
-                            var gear = gearData.GetType().GetField("gear", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(gearData) as IUpgradable;
-                            if (gear != null)
-                            {
-                                string key = $"{gear.Info.ID}_{realIndex}";
-                                displayName = PlayerPrefs.GetString("LoadoutName_" + key, "");
-                            }
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(displayName))
-                    {
-                        title = displayName;
-                    }
-                    else
-                    {
-                        title = string.Format("Loadout {0}", realIndex + 1);
+                        var newLoadouts = Array.CreateInstance(loadoutType, LoadoutSlotsPatches.MaxLoadoutSlots);
+                        if (currentLoadouts != null)
+                            currentLoadouts.CopyTo(newLoadouts, 0);
+                        loadoutsField.SetValue(gearData, newLoadouts);
                     }
                 }
             }
-            catch {}
+        }
+        catch (Exception)
+        {
+        }
+
+        var loadoutButtonsField = __instance.GetType()
+            .GetField("loadoutButtons", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (loadoutButtonsField != null)
+        {
+            var loadoutButtons = loadoutButtonsField.GetValue(__instance) as Array;
+
+            if (loadoutButtons != null)
+            {
+                var existingButtons = loadoutButtons.Length;
+                for (var l = 0; l < Mathf.Min(LoadoutSlotsPatches.MaxLoadoutSlots, existingButtons); l++)
+                {
+                    var button = loadoutButtons.GetValue(l);
+                    if (button != null)
+                    {
+                        var gameObject = button.GetType().GetProperty("gameObject")?.GetValue(button);
+                        if (gameObject != null)
+                            gameObject.GetType().GetMethod("SetActive")?.Invoke(gameObject, new object[] { true });
+                    }
+                }
+            }
+        }
+
+        try
+        {
+            if (upgradable != null)
+            {
+                var playerDataType = typeof(PlayerData);
+                var instanceProp = playerDataType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                var playerDataInstance = instanceProp?.GetValue(null);
+
+                var getGearDataMethod = playerDataType.GetMethod("GetGearData", new[] { typeof(IUpgradable) });
+                var gearData = getGearDataMethod?.Invoke(playerDataInstance, new object[] { upgradable });
+
+                if (gearData != null)
+                {
+                    var gear = gearData.GetType().GetField("gear", BindingFlags.NonPublic | BindingFlags.Instance)
+                        ?.GetValue(gearData) as IUpgradable;
+                    if (gear != null)
+                    {
+                        if (!LoadoutHoverInfoPatches.windowLoadoutNames.TryGetValue(__instance,
+                                out var windowNamesDict))
+                        {
+                            windowNamesDict = new Dictionary<int, string>();
+                            LoadoutHoverInfoPatches.windowLoadoutNames[__instance] = windowNamesDict;
+                        }
+
+                        for (var i = 0; i < LoadoutSlotsPatches.MaxLoadoutSlots; i++)
+                        {
+                            var key = $"{gear.Info.ID}_{i}";
+                            var savedName = PlayerPrefs.GetString("LoadoutName_" + key, "");
+                            if (!string.IsNullOrEmpty(savedName)) windowNamesDict[i] = savedName;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
         }
     }
+}
+
+[HarmonyPatch(typeof(GearDetailsWindow), "UpdateLoadoutIcon")]
+public static class UpdateIconPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ref int index)
+    {
+        if (index < 3) index += LoadoutExpanderMod.PageOffset;
+    }
+}
+
+[HarmonyPatch(typeof(PlayerData.GearData), "EquipLoadout")]
+public static class EquipLoadoutPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ref int index)
+    {
+        if (index < 3) index += LoadoutExpanderMod.PageOffset;
+    }
+}
+
+[HarmonyPatch(typeof(PlayerData.GearData), "IncrementLoadoutIcon")]
+public static class IncrementIconPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ref int index)
+    {
+        if (index < 3) index += LoadoutExpanderMod.PageOffset;
+    }
+}
+
+[HarmonyPatch(typeof(PlayerData.GearData), "SaveLoadout")]
+public static class SaveLoadoutPatch
+{
+    [HarmonyPrefix]
+    public static void Prefix(ref int index)
+    {
+        if (index < 3) index += LoadoutExpanderMod.PageOffset;
+    }
+}
